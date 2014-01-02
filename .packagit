@@ -1,0 +1,10 @@
+# coding: utf-8
+lib = File.expand_path('../lib', __FILE__)
+$LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
+require 'packagit/version'
+
+Packagit::Specification.new do |spec|
+  spec.name =      "packagit"
+  spec.version =   Packagit::VERSION
+  spec.files =     `git ls-files LICENSE.txt README.md lib bin`.split(/\s+/)
+end
