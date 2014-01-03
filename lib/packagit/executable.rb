@@ -2,7 +2,7 @@ require 'pathname'
 require 'optparse'
 require 'yaml'
 require 'fileutils'
-require 'packagit/specification'
+require 'active_support/core_ext'
 
 module Packagit
 
@@ -75,6 +75,8 @@ module Packagit
         FileUtils.mkdir_p(dest.dirname)
         FileUtils.cp(source, dest)
       end
+
+      FileUtils.rm_rf(@options[:releases])
       
       # 
       STDOUT.sync = true
@@ -86,12 +88,18 @@ module Packagit
         FileUtils.mkdir_p(build_dir.dirname)
         FileUtils.cp_r(reference, build_dir)
         script = @options[:packagers].join(build).join("build")
+        release = @options[:releases].join(build)
         command   = "BUILD_APP=#{@specification.name}"
         command << " BUILD_VERSION=#{@specification.version}"
         command << " BUILD_DIR=#{build_dir}"
+        command << " BUILD_TYPE=#{build}"
         command << " BUILD_LOG=#{builds_dir.join(build + '.log')}"
-        command << " BUILD_RELEASE=#{@options[:releases].join(build)}"
+        command << " BUILD_RELEASE=#{release}"
         command << " #{script}"
+        unless release.exist?
+          FileUtils.mkdir_p(release)
+          File.write(@options[:releases].join(build, ".placeholder"), "#{@specification.name} #{@specification.version} #{build}")
+        end
         if script.exist?
           puts command
           system(command)
@@ -100,6 +108,16 @@ module Packagit
         end
       end
 
+      if @options[:checksums]
+        Dir.chdir(@options[:releases]) do
+          files = `find . -type f`.split(/\s+/)
+          for algo in %w(sha256 sha1 md5)
+            command = "#{algo}sum #{files.join(' ')} > " + @options[:releases].join("#{algo.upcase}SUMS").to_s
+            puts command
+            system(command)
+          end
+        end
+      end
       
     end
 

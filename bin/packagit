@@ -6,6 +6,6 @@ if File.exist?(git_path)
   $:.unshift(packagit_path)
 end
 
-require 'packagit/executable'
+require 'packagit'
 task = Packagit::Executable.new(ARGV)
 task.invoke!

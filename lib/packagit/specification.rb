@@ -1,3 +1,5 @@
+require 'active_support/core_ext'
+
 module Packagit
 
   class Specification
@@ -11,7 +13,7 @@ module Packagit
       end
       yield(self)
       for required in REQUIREDS
-        if self.send(required).to_s =~ /\A[[:space:]]*\z/
+        if self.send(required).blank?
           raise ArgumentError, "#{required} must be given (#{self.class.name})"
         end
       end
