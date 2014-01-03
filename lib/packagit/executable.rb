@@ -13,14 +13,14 @@ module Packagit
     def initialize(argv)
       pwd = Pathname.new(Dir.pwd)
       @config = pwd.join(".packagit")
+      version = "undefined"
       if @config.exist?
         @specification = Packagit::Specification.load(@config)
-      else
-        raise "Need a config file"
+        version = @specification.version
       end
       @options = {
         checksums: true,
-        releases: pwd.join(RELEASES_DIR, @specification.version),
+        releases: pwd.join(RELEASES_DIR, version),
         packagers: pwd.join("packagers"),
         tmp: pwd.join("tmp", "packagit")
       }
@@ -49,6 +49,10 @@ module Packagit
       end
       optparse.parse!
 
+      unless @specification
+        puts "Need a config file (.packagit)"
+        exit(1)
+      end
 
       unless @builds = @options.delete(:builds)
         @builds ||= []
