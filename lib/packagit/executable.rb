@@ -15,8 +15,9 @@ module Packagit
       @config = pwd.join(".packagit")
       version = "undefined"
       if @config.exist?
-        @specification = Packagit::Specification.load(@config)
-        version = @specification.version
+        if @specification = Packagit::Specification.load(@config)
+          version = @specification.version
+        end
       end
       @options = {
         checksums: true,
@@ -58,7 +59,7 @@ module Packagit
         @builds ||= []
         if @options[:packagers].exist?
           Dir.chdir(@options[:packagers]) do
-            @builds += @options[:packagers].glob("*")
+            @builds += Dir.glob("*")
           end
         end
       end
@@ -68,21 +69,22 @@ module Packagit
     def invoke!
       exit(0) if @builds.empty?
 
+      FileUtils.rm_rf(@options[:tmp])
+
       # Prepare a clean export of the files
       reference = @options[:tmp].join("reference")
-      FileUtils.rm_rf(reference)
       FileUtils.mkdir_p(reference)
 
       for file in @specification.files
         source = Pathname.new(file).expand_path
         dest = reference.join(file)
         FileUtils.mkdir_p(dest.dirname)
-        FileUtils.cp(source, dest)
+        FileUtils.cp(source, dest) unless source.directory?
       end
 
       FileUtils.rm_rf(@options[:releases])
       
-      # 
+      # Launch builds
       STDOUT.sync = true
       now = Time.now
       builds_dir = @options[:tmp].join("builds") 
@@ -93,22 +95,22 @@ module Packagit
         FileUtils.cp_r(reference, build_dir)
         script = @options[:packagers].join(build).join("build")
         release = @options[:releases].join(build)
+        FileUtils.mkdir_p(release)
         command   = "BUILD_APP=#{@specification.name}"
         command << " BUILD_VERSION=#{@specification.version}"
         command << " BUILD_DIR=#{build_dir}"
         command << " BUILD_TYPE=#{build}"
         command << " BUILD_LOG=#{builds_dir.join(build + '.log')}"
         command << " BUILD_RELEASE=#{release}"
-        command << " #{script}"
-        unless release.exist?
-          FileUtils.mkdir_p(release)
-          File.write(@options[:releases].join(build, ".placeholder"), "#{@specification.name} #{@specification.version} #{build}")
-        end
+        command << " #{script} > source.log"
         if script.exist?
           puts command
-          system(command)
+          `#{command}`
         else
           puts "No script! (#{command})"
+        end
+        unless release.exist?
+          File.write(@options[:releases].join(build, ".placeholder"), "#{@specification.name} #{@specification.version} #{build}")
         end
       end
 
